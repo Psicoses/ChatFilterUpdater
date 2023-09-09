@@ -1,2 +1,3 @@
-# Example
-An example greeter plugin
+# Chat Filter Updater
+
+![Alt text](plugin.png)
