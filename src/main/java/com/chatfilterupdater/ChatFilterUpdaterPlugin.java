@@ -1,4 +1,4 @@
-package com.example;
+package com.chatfilterupdater;
 
 import com.google.inject.Provides;
 import net.runelite.api.Client;
@@ -7,7 +7,6 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.chatfilter.ChatFilterConfig;
 
 import javax.inject.Inject;
 import java.io.BufferedReader;
@@ -19,10 +18,12 @@ import java.util.stream.Collectors;
 @PluginDescriptor(
 		name = "Chat Filter Updater",
 		description = "Automatically updates the chat filter regex patterns from a URL",
-		tags = {"chat", "filter", "update", "github"}
+		tags = {"chat", "filter", "update", "spam", "github"}
 )
 public class ChatFilterUpdaterPlugin extends Plugin
 {
+
+	private static final String defaultURL = "https://raw.githubusercontent.com/IamReallyOverrated/Runelite_ChatFilter/master/Chatfilter";
 
 	@Inject
 	private Client client;
@@ -41,6 +42,10 @@ public class ChatFilterUpdaterPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		if(provideConfig(configManager).filterURL().isEmpty()){
+			configManager.setConfiguration("chatfilterupdater", "filterURL", defaultURL);
+		}
+
 		if(!fetchPatternsFromGitHub().isBlank()) {
 			setChatFilterRegex(fetchPatternsFromGitHub());
 
@@ -95,4 +100,5 @@ public class ChatFilterUpdaterPlugin extends Plugin
 	{
 		configManager.setConfiguration("chatfilter", "filteredRegex", regexBefore);
 	}
+
 }
