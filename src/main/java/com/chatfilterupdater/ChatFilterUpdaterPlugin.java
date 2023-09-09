@@ -83,7 +83,7 @@ public class ChatFilterUpdaterPlugin extends Plugin
 				return "";
 			}
 			URL url = new URL(provideConfig(configManager).filterURL());
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream())))
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8")))
 			{
 				return in.lines().collect(Collectors.joining("\n"));
 			}
@@ -94,6 +94,7 @@ public class ChatFilterUpdaterPlugin extends Plugin
 			return null;
 		}
 	}
+
 
 	@Override
 	protected void shutDown() throws Exception
