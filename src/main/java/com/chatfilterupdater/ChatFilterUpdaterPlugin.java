@@ -7,6 +7,9 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import javax.inject.Inject;
 import java.io.BufferedReader;
@@ -25,13 +28,16 @@ public class ChatFilterUpdaterPlugin extends Plugin
 
 	private static final String defaultURL = "https://raw.githubusercontent.com/IamReallyOverrated/Runelite_ChatFilter/master/Chatfilter";
 
+	private String regexBefore;
+
+	@Inject
+	private OkHttpClient httpClient;
+
 	@Inject
 	private Client client;
 
 	@Inject
 	private ConfigManager configManager;
-
-	private String regexBefore;
 
 	@Provides
 	ChatFilterUpdaterConfig provideConfig(ConfigManager configManager)
@@ -49,7 +55,6 @@ public class ChatFilterUpdaterPlugin extends Plugin
 		if(!fetchPatternsFromGitHub().isBlank()) {
 			setChatFilterRegex(fetchPatternsFromGitHub());
 
-			//Refresh chat after config change to reflect current rules
 			client.refreshChat();
 		}
 	}
@@ -70,23 +75,21 @@ public class ChatFilterUpdaterPlugin extends Plugin
 		if(!fetchPatternsFromGitHub().isBlank()) {
 			setChatFilterRegex(fetchPatternsFromGitHub());
 
-			//Refresh chat after config change to reflect current rules
 			client.refreshChat();
 		}
 	}
 
 	private String fetchPatternsFromGitHub()
 	{
-		try
+		Request request = new Request.Builder()
+				.url(provideConfig(configManager).filterURL())
+				.build();
+
+		try (Response response = httpClient.newCall(request).execute())
 		{
-			if(provideConfig(configManager).filterURL().isEmpty()){
-				return "";
-			}
-			URL url = new URL(provideConfig(configManager).filterURL());
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8")))
-			{
-				return in.lines().collect(Collectors.joining("\n"));
-			}
+			if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+			return response.body().string();
 		}
 		catch (IOException e)
 		{
