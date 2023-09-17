@@ -31,7 +31,7 @@ public class ChatFilterUpdaterPlugin extends Plugin
 
 	private String regexBefore;
 
-	private Logger logger = LoggerFactory.getLogger(ChatFilterUpdaterPlugin.class);
+	private final Logger logger = LoggerFactory.getLogger(ChatFilterUpdaterPlugin.class);
 
 	@Inject
 	private OkHttpClient httpClient;
@@ -54,11 +54,6 @@ public class ChatFilterUpdaterPlugin extends Plugin
 		updateChatFilter();
 	}
 
-	private void setChatFilterRegex(String regex){
-		regexBefore = configManager.getConfiguration("chatfilter", "filteredRegex");
-		configManager.setConfiguration("chatfilter", "filteredRegex", regex);
-	}
-
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
@@ -68,6 +63,11 @@ public class ChatFilterUpdaterPlugin extends Plugin
 		}
 
 		updateChatFilter();
+	}
+
+	private void setChatFilterRegex(String regex){
+		regexBefore = configManager.getConfiguration("chatfilter", "filteredRegex");
+		configManager.setConfiguration("chatfilter", "filteredRegex", regex);
 	}
 
 	private void updateChatFilter()
