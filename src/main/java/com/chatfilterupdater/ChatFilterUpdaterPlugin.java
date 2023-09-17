@@ -10,6 +10,9 @@ import net.runelite.client.plugins.PluginDescriptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.BufferedReader;
@@ -26,9 +29,9 @@ import java.util.stream.Collectors;
 public class ChatFilterUpdaterPlugin extends Plugin
 {
 
-	private static final String defaultURL = "https://raw.githubusercontent.com/IamReallyOverrated/Runelite_ChatFilter/master/Chatfilter";
-
 	private String regexBefore;
+
+	private Logger logger = LoggerFactory.getLogger(ChatFilterUpdaterPlugin.class);
 
 	@Inject
 	private OkHttpClient httpClient;
@@ -48,15 +51,7 @@ public class ChatFilterUpdaterPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		if(provideConfig(configManager).filterURL().isEmpty()){
-			configManager.setConfiguration("chatfilterupdater", "filterURL", defaultURL);
-		}
-
-		if(!fetchPatternsFromGitHub().isBlank()) {
-			setChatFilterRegex(fetchPatternsFromGitHub());
-
-			client.refreshChat();
-		}
+		updateChatFilter();
 	}
 
 	private void setChatFilterRegex(String regex){
@@ -72,9 +67,15 @@ public class ChatFilterUpdaterPlugin extends Plugin
 			return;
 		}
 
-		if(!fetchPatternsFromGitHub().isBlank()) {
-			setChatFilterRegex(fetchPatternsFromGitHub());
+		updateChatFilter();
+	}
 
+	private void updateChatFilter()
+	{
+		String patterns = fetchPatternsFromGitHub();
+		if (patterns != null && !patterns.isBlank())
+		{
+			setChatFilterRegex(patterns);
 			client.refreshChat();
 		}
 	}
@@ -87,17 +88,25 @@ public class ChatFilterUpdaterPlugin extends Plugin
 
 		try (Response response = httpClient.newCall(request).execute())
 		{
-			if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+			if (!response.isSuccessful()) {
+				throw new IOException("Unexpected response code: " + response.code() + ", body: " + response.body().string());
+			}
 
-			return response.body().string();
+			ResponseBody responseBody = response.body();
+			if (responseBody != null) {
+				return responseBody.string();
+			} else {
+				logger.error("Response body is null");
+				return null;
+			}
+
 		}
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			logger.error("Error fetching patterns from GitHub: " + e.getMessage());
 			return null;
 		}
 	}
-
 
 	@Override
 	protected void shutDown() throws Exception

@@ -13,8 +13,7 @@ public interface ChatFilterUpdaterConfig extends Config
 			description = "URL of the filter regex to pull from",
 			position = 0
 	)
-	default String filterURL()
-	{
-		return "";
+	default String filterURL() {
+		return "https://raw.githubusercontent.com/IamReallyOverrated/Runelite_ChatFilter/master/Chatfilter";
 	}
 }
