@@ -7,27 +7,24 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.io.BufferedReader;
+import javax.swing.*;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.stream.Collectors;
 
 @PluginDescriptor(
 		name = "Chat Filter Updater",
-		description = "Automatically updates the chat filter regex patterns from a URL",
+		description = "Automatically updates the chat filter regex patterns from a URL. Warning: Overwrites existing filter",
 		tags = {"chat", "filter", "update", "spam", "github"}
 )
 public class ChatFilterUpdaterPlugin extends Plugin
 {
+
+	// Flag to prevent asynchronous url fetching from changing regex after shutdown
+	private boolean isShuttingDown = false;
 
 	private String regexBefore;
 
@@ -51,7 +48,13 @@ public class ChatFilterUpdaterPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		updateChatFilter();
+		isShuttingDown = false;
+
+		regexBefore = configManager.getConfiguration("chatfilter", "filteredRegex");
+
+		warningMessage();
+
+		fetchPatternsFromGitHub();
 	}
 
 	@Subscribe
@@ -62,17 +65,15 @@ public class ChatFilterUpdaterPlugin extends Plugin
 			return;
 		}
 
-		updateChatFilter();
+		fetchPatternsFromGitHub();
 	}
 
 	private void setChatFilterRegex(String regex){
-		regexBefore = configManager.getConfiguration("chatfilter", "filteredRegex");
 		configManager.setConfiguration("chatfilter", "filteredRegex", regex);
 	}
 
-	private void updateChatFilter()
+	private void updateChatFilter(String patterns)
 	{
-		String patterns = fetchPatternsFromGitHub();
 		if (patterns != null && !patterns.isBlank())
 		{
 			setChatFilterRegex(patterns);
@@ -80,38 +81,70 @@ public class ChatFilterUpdaterPlugin extends Plugin
 		}
 	}
 
-	private String fetchPatternsFromGitHub()
+	private void fetchPatternsFromGitHub()
 	{
 		Request request = new Request.Builder()
 				.url(provideConfig(configManager).filterURL())
 				.build();
 
-		try (Response response = httpClient.newCall(request).execute())
+		httpClient.newCall(request).enqueue(new Callback()
 		{
-			if (!response.isSuccessful()) {
-				throw new IOException("Unexpected response code: " + response.code() + ", body: " + response.body().string());
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				logger.error("Error fetching patterns from GitHub: " + e.getMessage());
 			}
 
-			ResponseBody responseBody = response.body();
-			if (responseBody != null) {
-				return responseBody.string();
-			} else {
-				logger.error("Response body is null");
-				return null;
-			}
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				if (!response.isSuccessful())
+				{
+					logger.error("Unexpected response code: " + response.code() + ", body: " + response.body().string());
+					return;
+				}
 
-		}
-		catch (IOException e)
-		{
-			logger.error("Error fetching patterns from GitHub: " + e.getMessage());
-			return null;
-		}
+				ResponseBody responseBody = response.body();
+				if (responseBody != null && !isShuttingDown)
+				{
+					String patterns = responseBody.string();
+					updateChatFilter(patterns);
+				}
+				else
+				{
+					logger.error("Response body is null");
+				}
+			}
+		});
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
+		isShuttingDown = true;
+
 		configManager.setConfiguration("chatfilter", "filteredRegex", regexBefore);
+	}
+
+	private void warningMessage(){
+		boolean hasShownStartupWarning = configManager.getConfiguration("chatfilterupdater", "hasShownStartupWarning", Boolean.class);
+
+		if (!hasShownStartupWarning) {
+			SwingUtilities.invokeLater(() -> {
+				int result = JOptionPane.showConfirmDialog(null,
+						"Warning: Enabling the Chat Filter Updater will permanently overwrite your existing chat filter regex and any changes made while the plugin is on will be lost. " +
+								"\nConsider making additions to the master chat filter on github. https://github.com/IamReallyOverrated/Runelite_ChatFilter/tree/master",
+						"Chat Filter Updater Warning",
+						JOptionPane.OK_CANCEL_OPTION,
+						JOptionPane.WARNING_MESSAGE);
+
+				if (result == JOptionPane.OK_OPTION) {
+					configManager.setConfiguration("chatfilterupdater", "hasShownStartupWarning", true);
+				}else{ //cancel
+					configManager.setConfiguration("chatfilter", "filteredRegex", regexBefore); // set back to before plugin start
+				}
+			});
+		}
 	}
 
 }

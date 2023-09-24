@@ -16,4 +16,15 @@ public interface ChatFilterUpdaterConfig extends Config
 	default String filterURL() {
 		return "https://raw.githubusercontent.com/IamReallyOverrated/Runelite_ChatFilter/master/Chatfilter";
 	}
+
+	@ConfigItem(
+			keyName = "hasShownStartupWarning",
+			name = "Has shown startup warning",
+			description = "Indicates whether the startup warning has been shown",
+			hidden = true
+	)
+	default boolean hasShownStartupWarning() {
+		return false;
+	}
+
 }
