@@ -1,9 +1,5 @@
 # Chat Filter Updater
 
-![Plugin Hub Image](plugin.png)
-
-## Description
-
 Chat Filter Updater is a RuneLite plugin that automatically updates the regex list of the built-in Chat Filter plugin from a URL.
 
 ## Features
