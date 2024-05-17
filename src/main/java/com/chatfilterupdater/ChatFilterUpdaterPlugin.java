@@ -7,6 +7,8 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginInstantiationException;
+import net.runelite.client.plugins.PluginManager;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,9 @@ public class ChatFilterUpdaterPlugin extends Plugin
 
 	@Inject
 	private ConfigManager configManager;
+
+	@Inject
+	private PluginManager pluginManager;
 
 	@Provides
 	ChatFilterUpdaterConfig provideConfig(ConfigManager configManager)
@@ -131,7 +136,7 @@ public class ChatFilterUpdaterPlugin extends Plugin
 
 		if (!hasShownStartupWarning) {
 			SwingUtilities.invokeLater(() -> {
-				int result = JOptionPane.showConfirmDialog(null,
+				int result = JOptionPane.showConfirmDialog(client.getCanvas(),
 						"Warning: Enabling the Chat Filter Updater will permanently overwrite your existing chat filter regex and any changes made while the plugin is on will be lost. " +
 								"\nConsider making additions to the master chat filter on github. https://github.com/IamReallyOverrated/Runelite_ChatFilter/tree/master",
 						"Chat Filter Updater Warning",
@@ -142,7 +147,15 @@ public class ChatFilterUpdaterPlugin extends Plugin
 					configManager.setConfiguration("chatfilterupdater", "hasShownStartupWarning", true);
 				}else{ //cancel
 					configManager.setConfiguration("chatfilter", "filteredRegex", regexBefore); // set back to before plugin start
-				}
+
+					// Disable and stop plugin
+                    try {
+						pluginManager.setPluginEnabled(this, false);
+                        pluginManager.stopPlugin(this);
+                    } catch (PluginInstantiationException e) {
+						logger.error("Failed to stop Chat Filter Updater Plugin.");
+					}
+                }
 			});
 		}
 	}
